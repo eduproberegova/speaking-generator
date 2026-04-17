@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpeakFlow — Speaking Situation Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: rgba(255,255,255,0.07);
+    --border-hover: rgba(255,255,255,0.14);
+    --text: #f0eff4;
+    --muted: #8b8a94;
+    --faint: #3a3a44;
+
+    --en: #4ade80;
+    --en-bg: rgba(74,222,128,0.08);
+    --es: #fb923c;
+    --es-bg: rgba(251,146,60,0.08);
+    --de: #60a5fa;
+    --de-bg: rgba(96,165,250,0.08);
+
+    --a1: #a3e635; --a1-bg: rgba(163,230,53,0.08);
+    --a2: #34d399; --a2-bg: rgba(52,211,153,0.08);
+    --b1: #818cf8; --b1-bg: rgba(129,140,248,0.08);
+    --b2: #f472b6; --b2-bg: rgba(244,114,182,0.08);
+    --c1: #fb923c; --c1-bg: rgba(251,146,60,0.08);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ─── NOISE TEXTURE ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    width: 100%;
+    max-width: 860px;
+    padding: 3rem 2rem 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.25rem;
+  }
+  .logo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--en); display: inline-block; }
+
+  .tagline {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  /* ─── MAIN ─── */
+  main {
+    width: 100%;
+    max-width: 860px;
+    padding: 2.5rem 2rem 4rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ─── CONTROLS ─── */
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+
+  .pill-group {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 4px;
+    gap: 2px;
+  }
+
+  .pill-group button {
+    background: transparent;
+    border: none;
+    border-radius: 50px;
+    padding: 7px 18px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.18s ease;
+    white-space: nowrap;
+  }
+
+  .pill-group button:hover { color: var(--text); }
+
+  .pill-group button.active {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .pill-group button.active[data-val="en"] { background: var(--en-bg); color: var(--en); }
+  .pill-group button.active[data-val="es"] { background: var(--es-bg); color: var(--es); }
+  .pill-group button.active[data-val="de"] { background: var(--de-bg); color: var(--de); }
+  .pill-group button.active[data-val="A1"] { background: var(--a1-bg); color: var(--a1); }
+  .pill-group button.active[data-val="A2"] { background: var(--a2-bg); color: var(--a2); }
+  .pill-group button.active[data-val="B1"] { background: var(--b1-bg); color: var(--b1); }
+  .pill-group button.active[data-val="B2"] { background: var(--b2-bg); color: var(--b2); }
+  .pill-group button.active[data-val="C1"] { background: var(--c1-bg); color: var(--c1); }
+
+  /* ─── CARD ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem 2.25rem 1.75rem;
+    min-height: 340px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--glow-color, rgba(74,222,128,0.06)) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .card-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 260px;
+    gap: 1rem;
+  }
+
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid var(--faint);
+    border-top-color: var(--text);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 13px;
+    color: var(--muted);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+  .card-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 260px;
+    gap: 1rem;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .card-empty .icon {
+    font-size: 2.5rem;
+    opacity: 0.3;
+  }
+
+  /* ─── BADGES ─── */
+  .badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 50px;
+    border: 1px solid;
+  }
+
+  .badge-en { color: var(--en); border-color: rgba(74,222,128,0.25); background: var(--en-bg); }
+  .badge-es { color: var(--es); border-color: rgba(251,146,60,0.25); background: var(--es-bg); }
+  .badge-de { color: var(--de); border-color: rgba(96,165,250,0.25); background: var(--de-bg); }
+  .badge-A1 { color: var(--a1); border-color: rgba(163,230,53,0.25); background: var(--a1-bg); }
+  .badge-A2 { color: var(--a2); border-color: rgba(52,211,153,0.25); background: var(--a2-bg); }
+  .badge-B1 { color: var(--b1); border-color: rgba(129,140,248,0.25); background: var(--b1-bg); }
+  .badge-B2 { color: var(--b2); border-color: rgba(244,114,182,0.25); background: var(--b2-bg); }
+  .badge-C1 { color: var(--c1); border-color: rgba(251,146,60,0.25); background: var(--c1-bg); }
+
+  /* ─── SITUATION TITLE ─── */
+  .situation-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  /* ─── GRID ─── */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 560px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .card { padding: 1.5rem 1.25rem; }
+    main { padding: 1.5rem 1rem 3rem; }
+    header { padding: 2rem 1rem 0; }
+  }
+
+  .field-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+
+  .field-value {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.55;
+  }
+
+  .field-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+  }
+
+  /* ─── PROMPT ─── */
+  .prompt-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-color, var(--en));
+    border-radius: 0 12px 12px 0;
+    padding: 0.85rem 1.1rem;
+    margin-bottom: 1rem;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.55;
+  }
+
+  /* ─── TAGS ─── */
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .tag {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 50px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  /* ─── DIVIDER ─── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.25rem 0;
+  }
+
+  /* ─── ACTIONS ─── */
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 50px;
+    padding: 11px 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.12s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 11px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
+
+  .count-badge {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ─── ERROR ─── */
+  .error-block {
+    background: rgba(248,113,113,0.08);
+    border: 1px solid rgba(248,113,113,0.2);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    color: #fca5a5;
+    font-size: 13px;
+    margin-bottom: 1rem;
+  }
+
+  /* ─── API KEY ─── */
+  .api-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .api-section label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .api-input {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .api-input:focus { border-color: var(--border-hover); }
+  .api-input::placeholder { color: var(--faint); }
+
+  .api-save {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .api-save:hover { background: var(--faint); }
+
+  .api-status {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 50px;
+    white-space: nowrap;
+  }
+  .api-status.ok { color: var(--en); background: var(--en-bg); }
+  .api-status.missing { color: #fca5a5; background: rgba(248,113,113,0.08); }
+
+  /* ─── ANIMATION ─── */
+  .card-content {
+    animation: fadeUp 0.35s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── HISTORY ─── */
+  .history-strip {
+    margin-top: 1.25rem;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .history-pill {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 50px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    max-width: 280px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .history-pill:hover { border-color: var(--border-hover); color: var(--text); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    width: 100%;
+    max-width: 860px;
+    padding: 0 2rem 2rem;
+    font-size: 12px;
+    color: var(--faint);
+    position: relative;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-dot"></span>
+    SpeakFlow
+  </div>
+  <p class="tagline">AI Speaking Situation Generator · EN · ES · DE</p>
+</header>
+
+<main>
+
+  <!-- API KEY -->
+  <div class="api-section">
+    <label>Anthropic API Key</label>
+    <input class="api-input" type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
+    <button class="api-save" onclick="saveKey()">Save</button>
+    <span class="api-status missing" id="api-status">No key</span>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="pill-group" id="lang-group">
+      <button data-val="en" class="active">🇬🇧 English</button>
+      <button data-val="es">🇪🇸 Español</button>
+      <button data-val="de">🇩🇪 Deutsch</button>
+    </div>
+    <div class="pill-group" id="level-group">
+      <button data-val="A1" class="active">A1</button>
+      <button data-val="A2">A2</button>
+      <button data-val="B1">B1</button>
+      <button data-val="B2">B2</button>
+      <button data-val="C1">C1</button>
+    </div>
+  </div>
+
+  <!-- CARD -->
+  <div class="card" id="main-card" style="--glow-color: rgba(74,222,128,0.06)">
+    <div class="card-empty" id="card-empty">
+      <div class="icon">💬</div>
+      <div>Введи API-ключ і натисни «Generate»</div>
+    </div>
+    <div id="card-content" style="display:none"></div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions">
+    <button class="btn-primary" id="gen-btn" onclick="generate()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6.22 2.52"/><path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6.22-2.52"/><path d="m15 9 3-3-3-3"/><path d="m9 15-3 3 3 3"/></svg>
+      Generate situation
+    </button>
+    <button class="btn-ghost" id="again-btn" onclick="generate()" style="display:none">Again ↺</button>
+    <span class="count-badge" id="count-badge"></span>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="history-strip" id="history-strip"></div>
+
+</main>
+
+<footer>
+  Powered by Claude claude-sonnet-4-20250514 via Anthropic API · Situations are AI-generated and unique every time
+</footer>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────
+let lang = 'en', level = 'A1', apiKey = '', generating = false;
+let count = 0;
+const history = [];
+
+// ─── PROMPTS ─────────────────────────────────────────────
+const LANG_NAMES = { en: 'English', es: 'Spanish', de: 'German' };
+
+const LEVEL_DESC = {
+  A1: 'absolute beginner: present simple, basic verbs (be/have/go), articles, simple questions, very basic vocabulary (colours, numbers, family, food, greetings)',
+  A2: 'elementary: past simple, present continuous, comparatives, modal verbs (can/could/should), common connectors (because/and/but), everyday vocabulary',
+  B1: 'intermediate: present perfect, conditionals type 1&2, passive voice, opinion phrases, discourse markers (however/therefore/furthermore), topic vocabulary',
+  B2: 'upper-intermediate: advanced conditionals, complex passive, reported speech, hedging language, cohesive devices, abstract and academic vocabulary',
+  C1: 'advanced: nominalisation, complex subordination, nuanced modality, rhetorical devices, sophisticated discourse markers, specialised and academic vocabulary'
+};
+
+const LANG_INSTRUCTIONS = {
+  en: 'Generate the situation entirely in English.',
+  es: 'Genera la situación completamente en español. El "starter" debe ser una frase en español.',
+  de: 'Generiere die Situation komplett auf Deutsch. Der "starter" soll ein deutscher Satz sein.'
+};
+
+function buildPrompt() {
+  return `You are an expert ${LANG_NAMES[lang]} language teacher. Generate ONE unique speaking situation for a ${level} learner.
+
+Level ${level} means: ${LEVEL_DESC[level]}
+${LANG_INSTRUCTIONS[lang]}
+
+HISTORY (do NOT repeat these situations): ${history.slice(-8).map(h=>h.situation).join(' | ') || 'none'}
+
+Return ONLY valid JSON, no markdown, no preamble:
+{
+  "situation": "short scene description (1 sentence)",
+  "mood": "emotional context of the speaker (2-4 words)",
+  "task": "concrete speaking task (1 sentence)",
+  "starter": "useful opening phrase in ${LANG_NAMES[lang]} with blanks for …",
+  "grammar": ["focus point 1", "focus point 2", "focus point 3"],
+  "vocabulary": "8-10 key words or phrases separated by commas",
+  "tip": "one short pedagogical tip for the teacher (in English, max 15 words)"
+}`;
+}
+
+// ─── API CALL ─────────────────────────────────────────────
+async function callClaude(prompt) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  const text = data.content.map(b => b.text || '').join('');
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}
+
+// ─── GLOW COLORS ─────────────────────────────────────────
+const GLOW = {
+  en: 'rgba(74,222,128,0.07)',
+  es: 'rgba(251,146,60,0.07)',
+  de: 'rgba(96,165,250,0.07)'
+};
+const ACCENT = {
+  en: 'var(--en)', es: 'var(--es)', de: 'var(--de)'
+};
+
+// ─── RENDER CARD ─────────────────────────────────────────
+function renderCard(s) {
+  document.getElementById('card-empty').style.display = 'none';
+  const cc = document.getElementById('card-content');
+  cc.style.display = 'block';
+
+  const langLabel = { en:'English 🇬🇧', es:'Español 🇪🇸', de:'Deutsch 🇩🇪' }[lang];
+
+  cc.innerHTML = `
+    <div class="card-content">
+      <div class="badges">
+        <span class="badge badge-${lang}">${langLabel}</span>
+        <span class="badge badge-${level}">${level}</span>
+      </div>
+
+      <div class="situation-title">${esc(s.situation)}</div>
+
+      <div class="grid-2">
+        <div class="field-block">
+          <div class="field-label">Mood / Context</div>
+          <div class="field-value">${esc(s.mood)}</div>
+        </div>
+        <div class="field-block">
+          <div class="field-label">Task</div>
+          <div class="field-value">${esc(s.task)}</div>
+        </div>
+      </div>
+
+      <div class="field-label" style="margin: 1rem 0 5px;">Starter phrase</div>
+      <div class="prompt-block" style="--accent-color: ${ACCENT[lang]}">${esc(s.starter)}</div>
+
+      <hr class="divider">
+
+      <div class="grid-2">
+        <div>
+          <div class="field-label">Grammar focus</div>
+          <div class="tags">
+            ${s.grammar.map(g => `<span class="tag">${esc(g)}</span>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Key vocabulary</div>
+          <div class="field-value" style="font-size:13px; color: var(--muted); margin-top:4px;">${esc(s.vocabulary)}</div>
+        </div>
+      </div>
+
+      ${s.tip ? `<div style="margin-top:1rem; font-size:12px; color:var(--muted); font-style:italic;">💡 ${esc(s.tip)}</div>` : ''}
+    </div>
+  `;
+
+  document.getElementById('main-card').style.setProperty('--glow-color', GLOW[lang]);
+  document.getElementById('again-btn').style.display = 'inline-flex';
+}
+
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── LOADING STATE ────────────────────────────────────────
+const LOADING_MSGS = [
+  'Crafting your scenario…',
+  'Thinking in ' + LANG_NAMES['en'] + '…',
+  'Selecting grammar focus…',
+  'Picking the perfect situation…',
+  'Almost ready…'
+];
+
+function showLoading() {
+  document.getElementById('card-empty').style.display = 'none';
+  const cc = document.getElementById('card-content');
+  cc.style.display = 'block';
+  let i = 0;
+  const msgs = [
+    'Crafting your scenario…',
+    `Thinking in ${LANG_NAMES[lang]}…`,
+    'Selecting grammar focus…',
+    'Almost ready…'
+  ];
+  cc.innerHTML = `<div class="card-loading"><div class="spinner"></div><div class="loading-text" id="loading-msg">${msgs[0]}</div></div>`;
+  const interval = setInterval(() => {
+    i = (i+1) % msgs.length;
+    const el = document.getElementById('loading-msg');
+    if (el) el.textContent = msgs[i];
+  }, 900);
+  return () => clearInterval(interval);
+}
+
+// ─── GENERATE ─────────────────────────────────────────────
+async function generate() {
+  if (generating) return;
+  if (!apiKey) {
+    alert('Please enter your Anthropic API key first.');
+    document.getElementById('api-key-input').focus();
+    return;
+  }
+
+  generating = true;
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+
+  const stopLoading = showLoading();
+
+  try {
+    const s = await callClaude(buildPrompt());
+    stopLoading();
+    count++;
+    history.unshift({ situation: s.situation, lang, level });
+    if (history.length > 20) history.pop();
+    renderCard(s);
+    renderHistory();
+    document.getElementById('count-badge').textContent = `${count} generated this session`;
+  } catch (err) {
+    stopLoading();
+    document.getElementById('card-content').innerHTML = `
+      <div class="error-block">
+        <strong>Error:</strong> ${esc(err.message)}<br>
+        <span style="opacity:0.7;font-size:12px;margin-top:4px;display:block;">Check your API key and try again.</span>
+      </div>`;
+    document.getElementById('card-empty').style.display = 'none';
+    document.getElementById('card-content').style.display = 'block';
+  } finally {
+    generating = false;
+    btn.disabled = false;
+  }
+}
+
+// ─── HISTORY STRIP ────────────────────────────────────────
+function renderHistory() {
+  const strip = document.getElementById('history-strip');
+  if (history.length < 2) { strip.innerHTML = ''; return; }
+  strip.innerHTML = '<div style="font-size:11px;color:var(--faint);align-self:center;text-transform:uppercase;letter-spacing:0.06em;">Recent:</div>' +
+    history.slice(1, 6).map((h, i) =>
+      `<div class="history-pill" title="${esc(h.situation)}">${esc(h.situation.slice(0, 40))}…</div>`
+    ).join('');
+}
+
+// ─── API KEY ──────────────────────────────────────────────
+function saveKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val) return;
+  apiKey = val;
+  try { localStorage.setItem('sf_key', val); } catch(e) {}
+  updateKeyStatus();
+}
+
+function updateKeyStatus() {
+  const el = document.getElementById('api-status');
+  if (apiKey) {
+    el.textContent = '✓ Ready';
+    el.className = 'api-status ok';
+  } else {
+    el.textContent = 'No key';
+    el.className = 'api-status missing';
+  }
+}
+
+// ─── SEGMENT CONTROLS ─────────────────────────────────────
+document.querySelectorAll('#lang-group button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#lang-group button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    lang = btn.dataset.val;
+  });
+});
+
+document.querySelectorAll('#level-group button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#level-group button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    level = btn.dataset.val;
+  });
+});
+
+// ─── KEYBOARD ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target === document.getElementById('api-key-input')) {
+    saveKey();
+  }
+  if (e.key === ' ' && e.target.tagName !== 'INPUT') {
+    e.preventDefault();
+    generate();
+  }
+});
+
+// ─── INIT ─────────────────────────────────────────────────
+(function init() {
+  try {
+    const saved = localStorage.getItem('sf_key');
+    if (saved) {
+      apiKey = saved;
+      document.getElementById('api-key-input').value = saved;
+      updateKeyStatus();
+    }
+  } catch(e) {}
+})();
+</script>
+
+</body>
+</html>
